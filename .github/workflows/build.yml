@@ -2,9 +2,10 @@ name: Build APK
 
 on:
   push:
-    branches: [ main ]
+    # 兼容默认分支为 main / master 两种情况，避免 push 不触发
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
   workflow_dispatch:
 
 permissions:
@@ -14,7 +15,7 @@ jobs:
   build:
     name: assembleDebug (cloud)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -34,6 +35,7 @@ jobs:
           sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Set up Gradle
+        # 仓库不提交 Gradle Wrapper，由该 action 下载指定 Gradle 并加入 PATH
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.7'
@@ -50,5 +52,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: AceSolo-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

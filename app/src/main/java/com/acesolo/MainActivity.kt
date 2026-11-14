@@ -37,6 +37,9 @@ class MainActivity : AppCompatActivity() {
     private val logLines = ArrayDeque<String>()
     private val maxLogLines = 800
 
+    /** 增量追加计数：每 200 条才做一次超限裁剪，避免每帧全量重排（230400 下会 ANR）。 */
+    private var appendCount = 0
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -118,17 +121,29 @@ class MainActivity : AppCompatActivity() {
 
     private fun clearLog() {
         logLines.clear()
+        appendCount = 0
         tvLog.text = ""
     }
 
+    /**
+     * 日志追加：只 append 增量文本，不每次 join 整块（最高 800 行 × 60 字符）。
+     * 超限裁剪走「每 200 条一次全量重建」，把重排成本摊薄。
+     */
     private fun appendLog(line: String) {
-        if (!::tvLog.isInitialized) return
-        val stamped = timeFormat.format(Date()) + "  " + line
+        if (!::tvLog.isInitialized || isFinishing || isDestroyed) return
+        val stamped = timeFormat.format(Date()) + "  " + line + "\n"
         logLines.addLast(stamped)
         while (logLines.size > maxLogLines) {
             logLines.removeFirst()
         }
-        tvLog.text = logLines.joinToString("\n")
+        tvLog.append(stamped)
+        appendCount++
+        if (appendCount >= 200) {
+            appendCount = 0
+            if (tvLog.lineCount > maxLogLines) {
+                tvLog.text = logLines.joinToString("")
+            }
+        }
         scrollLog.post { scrollLog.fullScroll(View.FOCUS_DOWN) }
     }
 
@@ -156,10 +171,6 @@ class MainActivity : AppCompatActivity() {
                 val device = UsbSerialManager.deviceFromIntent(intent)
                 appendLog("USB 设备接入：" + UsbSerialManager.describeDevice(device))
                 appendLog("下一步：点击「连接 USB 串口」发起打开请求")
-            }
-            UsbManager.ACTION_USB_DEVICE_DETACHED -> {
-                val device = UsbSerialManager.deviceFromIntent(intent)
-                usb.onDeviceDetached(device)
             }
         }
     }

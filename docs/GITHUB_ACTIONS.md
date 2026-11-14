@@ -153,7 +153,7 @@ workflow 名称为 **`Build APK`**，触发条件：
 | `SDK location not found`、`ANDROID_HOME` 相关 | SDK 环境变量缺失 | 同样检查 setup-android 是否成功；本工程不需要 `local.properties`（CI 由环境变量提供） |
 | `Minimum supported Gradle version is 8.7`、`AGP 8.5.2 requires Gradle 8.7` | Gradle 版本不匹配 | workflow 已用 `gradle/actions/setup-gradle@v3` 固定 `gradle-version: '8.7'`；**不要提交 gradle-wrapper**，也不要本地改成 8.6 |
 | Kotlin 编译错误：`Unresolved reference: ...`、`e: file:...` | 代码/资源问题 | 按日志里的 `文件:行号` 定位；`Unresolved reference: R` 通常是 `res/` 资源缺失或布局 id 与代码不一致；`jvmTarget` 不一致则检查是否被改成 11/21 |
-| `Could not resolve com.github.mik3y:usb-serial-for-android:3.8.1`、`Could not GET ...` | 依赖下载失败（网络抖动/仓库源缺失） | 确认 `settings.gradle.kts` 里有 `mavenCentral()`；直接 **Re-run all jobs** 重试 |
+| `Could not resolve com.github.mik3y:usb-serial-for-android:3.8.1`、`Could not GET ...` | 依赖下载失败（网络抖动/仓库源缺失） | 确认 `settings.gradle.kts` 里有 `mavenCentral()` 与 `maven { url = uri("https://jitpack.io") }`（usb-serial-for-android **只发布在 JitPack**）；直接 **Re-run all jobs** 重试 |
 | `upload-artifact` 报 `No files were found with the provided path` | APK 没生成（前一步已失败）或路径改了 | 本工程路径固定为 `app/build/outputs/apk/debug/app-debug.apk`；先确认 `Build debug APK` 是绿的；`if-no-files-found: error` 会主动让这一步失败，属于保护 |
 | 明明改了代码但报错没变、日志像旧的 | Gradle 缓存失效/陈旧 | Actions → **Re-run all jobs**（必要时在 Actions → Caches 删除对应缓存）；`--no-daemon` 已禁用常驻进程 |
 | `refusing to allow a personal access token to create or update workflow` | PAT 缺 workflow 权限 | classic token 补勾 `workflow`；fine-grained 加 **Workflows: Read and write** |

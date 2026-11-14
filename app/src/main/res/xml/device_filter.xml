@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- USB 串口设备过滤器：插入匹配的 USB 转串口芯片时唤起 AceSolo。
-     vendor-id / product-id 必须是十进制（AOSP UsbDeviceFilter 解析为整数）。 -->
+     vendor-id / product-id 必须是十进制（AOSP UsbDeviceFilter 解析为整数）。
+     注意：这里只是「唤起 App」的白名单，实际能否识别取决于 usb-serial-for-android 3.8.1
+     是否内置对应驱动 —— 该版本自带 CH340/CH341A、CP210x、FTDI、PL2303；
+     CH343/CH9102 没有专用驱动（CH9102 若以 CDC-ACM 枚举则可能被通用驱动接住）。 -->
 <resources>
-    <!-- WCH CH340  1A86:7523 -->
+    <!-- WCH CH340  1A86:7523（3.8.1 有专用驱动） -->
     <usb-device vendor-id="6790" product-id="29987" />
-    <!-- WCH CH341  1A86:5523 -->
+    <!-- WCH CH341A 1A86:5523（3.8.1 有专用驱动） -->
     <usb-device vendor-id="6790" product-id="21795" />
-    <!-- WCH CH343  1A86:55D3 -->
+    <!-- WCH CH343  1A86:55D3（3.8.1 无专用驱动，仅唤起 App） -->
     <usb-device vendor-id="6790" product-id="21971" />
-    <!-- WCH CH9102 1A86:55D4 -->
+    <!-- WCH CH9102 1A86:55D4（3.8.1 无专用驱动；CDC-ACM 模式下可能可用） -->
     <usb-device vendor-id="6790" product-id="21972" />
     <!-- Silicon Labs CP210x  10C4:EA60 -->
     <usb-device vendor-id="4292" product-id="60000" />

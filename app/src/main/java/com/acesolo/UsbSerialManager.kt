@@ -20,11 +20,13 @@ import com.hoho.android.usbserial.util.SerialInputOutputManager
 import java.io.IOException
 import java.util.Locale
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 
 /**
  * USB 串口管理器（MVP：打开端口 + 原始字节收发）。
  *
- * 依赖 usb-serial-for-android（CH340/CH341/CH343/CH9102/CP210x/FTDI/PL2303 等驱动）。
+ * 依赖 usb-serial-for-android 3.8.1：CH340/CH341A、CP210x、FTDI、PL2303 有专用驱动；
+ * CH343/CH9102 在 3.8.1 中没有专用驱动（CH9102 若以 CDC-ACM 枚举则可能被通用驱动接住）。
  * 不涉及 ACE2 Pro 业务协议，收到的数据原样以 hex 抛给 UI。
  */
 class UsbSerialManager(
@@ -65,17 +67,24 @@ class UsbSerialManager(
 
         /**
          * 解析十六进制输入，兼容 "AA 55 01"、"AA5501"、"0xAA,0x55" 等写法。
-         * 返回 null 表示格式非法。
+         * 返回 null 表示格式非法（空输入同样返回 null）。
          */
         fun parseHex(input: String): ByteArray? {
-            var cleaned = input.replace("0x", "", ignoreCase = true)
-            cleaned = cleaned.replace(Regex("[\\s,;:_\\-]"), "")
-            if (cleaned.isEmpty()) return null
-            if (cleaned.length % 2 != 0) return null
-            if (!cleaned.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }) return null
-            val out = ByteArray(cleaned.length / 2)
+            val tokens = input.trim()
+                .split(Regex("[\\s,;:_+\\-]+"))
+                .filter { it.isNotEmpty() }
+            if (tokens.isEmpty()) return null
+            val hex = StringBuilder()
+            for (token in tokens) {
+                val raw = token.removePrefix("0x").removePrefix("0X")
+                if (raw.isEmpty()) return null
+                if (!raw.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }) return null
+                hex.append(raw)
+            }
+            if (hex.length % 2 != 0) return null
+            val out = ByteArray(hex.length / 2)
             for (i in out.indices) {
-                out[i] = cleaned.substring(i * 2, i * 2 + 2).toInt(16).toByte()
+                out[i] = hex.substring(i * 2, i * 2 + 2).toInt(16).toByte()
             }
             return out
         }
@@ -101,27 +110,42 @@ class UsbSerialManager(
     private var ioManager: SerialInputOutputManager? = null
     private var receiverRegistered = false
     private var pendingBaud = DEFAULT_BAUD
+    private var released = false
 
     val isOpen: Boolean
         get() = port?.isOpen == true
 
-    private val permissionReceiver = object : BroadcastReceiver() {
+    /**
+     * 运行时广播接收器：
+     * - ACTION_USB_PERMISSION：USB 授权结果（PendingIntent 回调）
+     * - ACTION_USB_DEVICE_DETACHED：拔线。Activity 的 manifest intent-filter 收不到拔线广播，
+     *   必须动态注册，否则拔线后 isOpen 一直是 true。
+     */
+    private val usbEventReceiver = object : BroadcastReceiver() {
         override fun onReceive(receiverContext: Context?, intent: Intent?) {
-            if (intent?.action != ACTION_USB_PERMISSION) return
-            val device = deviceFromIntent(intent)
-            val granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)
-            if (device == null) {
-                log("!! USB 权限回调里没有设备信息")
-                return
+            when (intent?.action) {
+                ACTION_USB_PERMISSION -> handlePermissionResult(intent)
+                UsbManager.ACTION_USB_DEVICE_DETACHED ->
+                    onDeviceDetached(deviceFromIntent(intent))
+                else -> Unit
             }
-            if (!granted) {
-                log("!! USB 权限被拒绝：${describeDevice(device)}")
-                notifyConnectionChanged()
-                return
-            }
-            log("USB 权限已授予：${describeDevice(device)}")
-            openPort(device, pendingBaud)
         }
+    }
+
+    private fun handlePermissionResult(intent: Intent) {
+        val device = deviceFromIntent(intent)
+        val granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)
+        if (device == null) {
+            log("!! USB 权限回调里没有设备信息")
+            return
+        }
+        if (!granted) {
+            log("!! USB 权限被拒绝：${describeDevice(device)}")
+            notifyConnectionChanged()
+            return
+        }
+        log("USB 权限已授予：${describeDevice(device)}")
+        openPort(device, pendingBaud)
     }
 
     private fun log(message: String) {
@@ -143,6 +167,8 @@ class UsbSerialManager(
 
     /** 连接第一个可识别的 USB 串口设备（必要时先申请 USB 权限）。 */
     fun connect(baud: Int) {
+        if (released) return
+        ensureReceiver()
         pendingBaud = baud
         if (isOpen) {
             log("串口已打开，如需修改波特率请先断开")
@@ -151,7 +177,7 @@ class UsbSerialManager(
         val drivers = devices()
         if (drivers.isEmpty()) {
             log("!! 未发现 USB 串口设备")
-            log("   检查：OTG 已开启 / 转换器已插紧 / CH340 驱动是否被系统占用 / 是否已授予 USB 权限")
+            log("   检查：OTG 已开启 / 转换器已插紧 / 驱动是否被系统占用 / 是否已授予 USB 权限")
             notifyConnectionChanged()
             return
         }
@@ -184,15 +210,18 @@ class UsbSerialManager(
     private fun ensureReceiver() {
         if (receiverRegistered) return
         try {
+            val filter = IntentFilter(ACTION_USB_PERMISSION).apply {
+                addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
+            }
             ContextCompat.registerReceiver(
                 context,
-                permissionReceiver,
-                IntentFilter(ACTION_USB_PERMISSION),
+                usbEventReceiver,
+                filter,
                 ContextCompat.RECEIVER_NOT_EXPORTED
             )
             receiverRegistered = true
         } catch (e: Exception) {
-            log("!! 注册 USB 权限广播失败：${e.message}")
+            log("!! 注册 USB 广播接收器失败：${e.message}")
         }
     }
 
@@ -256,18 +285,23 @@ class UsbSerialManager(
 
     /** 发送原始字节（hex 由 UI 解析后传入）。 */
     fun send(data: ByteArray) {
+        if (released) return
         val serialPort = port
         if (serialPort == null || !serialPort.isOpen) {
             log("!! 串口未打开，无法发送")
             return
         }
         log("TX (${data.size}B) ${toHex(data)}")
-        writer.execute {
-            try {
-                serialPort.write(data, WRITE_TIMEOUT_MS)
-            } catch (e: Exception) {
-                log("!! 写入失败：${e.message}")
+        try {
+            writer.execute {
+                try {
+                    serialPort.write(data, WRITE_TIMEOUT_MS)
+                } catch (e: Exception) {
+                    log("!! 写入失败：${e.message}")
+                }
             }
+        } catch (_: RejectedExecutionException) {
+            log("!! 发送线程已关闭，忽略本次发送")
         }
     }
 
@@ -308,15 +342,20 @@ class UsbSerialManager(
 
     /** Activity 销毁时释放资源。 */
     fun release() {
+        released = true
         closePort()
         if (receiverRegistered) {
             try {
-                context.unregisterReceiver(permissionReceiver)
+                context.unregisterReceiver(usbEventReceiver)
             } catch (_: Exception) {
             }
             receiverRegistered = false
         }
-        writer.shutdown()
+        try {
+            writer.shutdown()
+        } catch (_: Exception) {
+        }
+        mainHandler.removeCallbacksAndMessages(null)
     }
 
     // ---- SerialInputOutputManager.Listener ----
@@ -326,7 +365,10 @@ class UsbSerialManager(
     }
 
     override fun onRunError(e: Exception) {
-        log("!! 串口读取异常：${e.message}")
-        notifyConnectionChanged()
+        log("!! 串口读取异常，已关闭端口：${e.message}")
+        mainHandler.post {
+            closePort()
+            notifyConnectionChanged()
+        }
     }
 }

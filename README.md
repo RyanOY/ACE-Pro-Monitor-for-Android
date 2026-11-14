@@ -37,7 +37,7 @@ AceSolo 是一个**实验性 / 自用**的 Android 工具：把手机变成 Anyc
 | --- | --- | --- |
 | 语言 | Kotlin 2.0.21 | `kotlin.code.style=official` |
 | UI | AndroidX + Material 3 | `core-ktx 1.13.1` / `appcompat 1.7.0` / `material 1.12.0`，单 Activity + XML 布局 |
-| USB 串口 | `com.github.mik3y:usb-serial-for-android:3.8.1` | 内置 CH340/CH341/CH343/CH9102、CP210x、FTDI、PL2303 等驱动 |
+| USB 串口 | `com.github.mik3y:usb-serial-for-android:3.8.1`（JitPack 仓库） | 3.8.1 自带 CH340/CH341A、CP210x、FTDI、PL2303 驱动；CH343/CH9102 无专用驱动 |
 | 构建 | AGP 8.5.2 + Gradle 8.7 | 仓库**不提交** Gradle Wrapper，由 CI 指定版本 |
 | JDK | 17（Temurin） | `compileOptions` / `kotlinOptions` 均为 17 |
 | SDK | `compileSdk 34` · `targetSdk 34` · `minSdk 24` | Android 7.0 及以上 |
@@ -67,7 +67,7 @@ AceSolo/
 ├── docs/
 │   └── GITHUB_ACTIONS.md          # 云构建操作手册（建仓库 / PAT / 触发 / 下载 / 排查）
 ├── build.gradle.kts               # 根脚本：仅声明插件版本，全部 apply false
-├── settings.gradle.kts            # 仓库源（google + mavenCentral）、include(":app")
+├── settings.gradle.kts            # 仓库源（google + mavenCentral + jitpack）、include(":app")
 ├── gradle.properties              # JVM 内存、并行、缓存、AndroidX
 ├── .gitignore                     # 忽略 build/、.gradle/、local.properties、*.apk
 └── README.md
@@ -170,7 +170,7 @@ workflow 关键步骤：
 ### 驱动未识别
 
 - 现象：`!! 未识别该设备的串口驱动（可换 CH340/CP210x 转换器）`；
-- `usb-serial-for-android 3.8.1` 覆盖 CH340/CH341/CH343/CH9102、CP210x、FTDI、PL2303 等常见芯片；
+- `usb-serial-for-android 3.8.1` 覆盖 CH340/CH341A、CP210x、FTDI、PL2303；**CH343 / CH9102 没有专用驱动**，请优先用 CH340 模块；
 - 若你的模块是别的芯片（如部分 CDC-ACM），需要后续自行扩展 prober；
 - 模块被其他串口 App 占用时会报 `!! openDevice 返回 null（权限不足或被其他 App 占用）`，先关掉其他 App。
 

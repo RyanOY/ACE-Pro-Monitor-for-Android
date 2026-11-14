@@ -13,6 +13,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // usb-serial-for-android 只发布在 JitPack（Maven Central 上没有），必须显式声明
+        maven { url = uri("https://jitpack.io") }
     }
 }
 

@@ -270,10 +270,19 @@ def check_ci_consistency():
         ok("CI 执行 assembleDebug")
     else:
         fail("CI 未执行 assembleDebug")
-    if "app/build/outputs/apk/debug/app-debug.apk" not in workflow:
-        fail("CI artifact 路径不是 app/build/outputs/apk/debug/app-debug.apk")
+    if "app/build/outputs/apk/debug/" not in workflow:
+        fail("CI artifact 路径不在 app/build/outputs/apk/debug/ 下")
     else:
         ok("CI artifact 路径正确")
+
+    # com.github.* 依赖（如 usb-serial-for-android）只发布在 JitPack，仓库必须声明
+    settings_path = os.path.join(ROOT, "settings.gradle.kts")
+    settings_text = open(settings_path, encoding="utf-8").read() if os.path.isfile(settings_path) else ""
+    if "com.github." in app_gradle:
+        if "jitpack.io" in settings_text:
+            ok("JitPack 仓库已声明（com.github.* 依赖可解析）")
+        else:
+            fail("app 依赖了 com.github.*（JitPack 包），但 settings.gradle.kts 没有声明 maven { url = uri(\"https://jitpack.io\") }")
 
     # 未使用 Gradle Wrapper 时必须由 setup-gradle 提供 gradle 可执行文件
     has_wrapper = os.path.isfile(os.path.join(ROOT, "gradle/wrapper/gradle-wrapper.properties"))
