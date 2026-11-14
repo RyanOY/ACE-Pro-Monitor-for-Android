@@ -2,7 +2,8 @@
 
 > 面向 AceSolo（Android USB Host 接入）的第一轮协议资料汇总。
 > 结论均标注来源等级；**本项目自研实现尚未开始，本文所有帧示例都是按协议合成的，不是实测抓包**。
-> **v0.2 补充（2026-11）**：上一句是 v0.1 写作时的状态，已过时——v0.2.0 已实现 USB 串口连接、`DISCOVER_DEVICE`/`ASSIGN_DEVICE_ID`/`GET_INFO` 握手、`DRYING` 启动/停止与 2 s 状态轮询。帧示例仍是**按协议合成、未在真机抓包验证**。实现清单见新增的 §0 与 §4.1 的「v0.2 实现」列，操作与帧逐字节说明见 [`DRYING.md`](./DRYING.md)。
+> **v0.2 补充（2026-11）**：上一句是 v0.1 写作时的状态，已过时——v0.2.0 已实现 USB 串口连接、`DISCOVER_DEVICE`/`ASSIGN_DEVICE_ID`/`GET_INFO` 握手、`DRYING` 启动/停止与 2 s 状态轮询。实现清单见新增的 §0 与 §4.1 的「v0.2 实现」列，操作与帧逐字节说明见 [`DRYING.md`](./DRYING.md)。
+> **实机验证（2026-11-14）**：本文关于 ACE2 的帧格式 / CRC / 命令号 / 握手 / 状态字段，已在真机 ACE2 Pro（固件 `V1.1.22`，CH343 CDC-ACM）上实测确认；真实收发帧、逐字段解析与复算脚本见 [`HARDWARE-VERIFICATION.md`](./HARDWARE-VERIFICATION.md)。本文中的帧示例仍是**按协议合成的对照样例**，实测字节以该文件为准。
 >
 > - 标记说明：✅ 有来源的事实（文档/代码/实测记录可查）｜🔶 推断或社区实现约定（多个实现一致，但无官方说明）｜❓ 待验证（存在冲突或只有单一来源）｜⚠️ 安全注意
 > - 调研时间：2026-11（来源 URL 见各节）
@@ -34,13 +35,13 @@ v0.2.0（Android，`com.acesolo`，`versionCode 2`）的实际实现范围：
 
 | 能力 | 状态 | 说明 |
 |---|---|---|
-| USB Host 串口连接（230400 8N1） | ✅ 已实现 | CH340/CH341A/CP210x/FTDI/PL2303；官方 CH343 线（`1a86:55d3`）在 usb-serial-for-android 3.8.1 下无驱动 |
+| USB Host 串口连接（230400 8N1） | ✅ 已实现 | CH340/CH341A/CP210x/FTDI/PL2303；官方风格 CH343 线（`1a86:55d3`）实测以 **CDC-ACM** 枚举、由 `CdcAcmSerialDriver` 接住，可用（见 `HARDWARE-VERIFICATION.md`） |
 | 自动握手：DISCOVER → ASSIGN(1) → GET_INFO | ✅ 已实现 | 每次连接重新握手；地址上电后不持久 |
 | `DRYING` 启动 / 停止（cmd 11） | ✅ 已实现 | 30–65 ℃ / 10–1440 分钟，UI 二次确认；`auto_roll` 固定 false |
 | `GET_STATUS` 2 s 轮询与状态卡 | ✅ 已实现 | 工作状态 / 温度 / 湿度 / 烘干状态 / 目标温度 / 剩余时间 |
 | 原始帧 hex 日志 + 手动 hex 发送 | ✅ 已实现 | 沿用 v0.1 调试台 |
 | 进料/回抽、RFID、固件升级（IAP）、多机总线 | ✖ 未实现 | 部分命令在 `Ace2Protocol.kt` 里有 payload 封装，界面未接（见 §4.1 新增列） |
-| 真机抓包验证 | ✖ 未验证 | **本文所有协议结论仍来自社区逆向；帧示例为合成，不是实测** |
+| 真机抓包验证 | ✅ 已实测 | 2026-11-14，固件 `V1.1.22`：握手 / 状态 / 烘干启停全部通过，真实帧见 [`HARDWARE-VERIFICATION.md`](./HARDWARE-VERIFICATION.md)；其他固件版本仍需验证 |
 
 - 帧格式 / CRC 以 §3 的**驱动实现布局**为准：`FF AA | flags | id(le16) | cmd | len | payload | crc16(le16) | FE`，CRC16/MCRF4XX 覆盖 `frame[2 .. 7+len)`。
 - 已知单位差异：`DRYING` **请求**的 `duration` = 分钟，`GET_STATUS` 里的 `duration` / `remain_time` = 秒（§5.4 已就地标注）。
@@ -693,11 +694,11 @@ message FilamentInfoResponse   { /* 见 §5.7 */ }
 | 7 | STOP 的完成时序/重试上限 | 停止可靠性 | 运行中 STOP，记录回 ready 时间 |
 | 8 | 多机 DISCOVER/ASSIGN 细节（广播地址、应答延迟） | 多机支持 | 两台设备抓包 |
 | 9 | 帧间最小间隔 | 稳定性 | 压测不同发送间隔 |
-| 10 | 设备是否回显 TX 字节（适配器 echo） | 解析实现 | 对比发送与接收字节 |
-| 11 | 官方线是否 100% 等同 CH343 CDC-ACM（RTS/DTR 要求） | Android 驱动 | 手机实机枚举 + 试 DTR 开关 |
+| 10 | 设备是否回显 TX 字节（适配器 echo） | 解析实现 | ✅ 本机 CH343 适配器未观察到回显（TX/RX 字节不同）；App 已加 `isEchoOfLastTx` 兜底 |
+| 11 | 官方线是否 100% 等同 CH343 CDC-ACM（RTS/DTR 要求） | Android 驱动 | ✅ 实测枚举为 `1a86:55d3` / `CdcAcmSerialDriver`，230400 通信用默认 DTR/RTS 即可；见 `HARDWARE-VERIFICATION.md` |
 
 ## 附录 C：本文档使用约定与更新
 
-- 帧示例为**合成**（按 §3 规则计算），仅用于对照编码器；实测抓包记录应另存为 `captures/*.jsonl`（后续任务）。
+- 帧示例为**合成**（按 §3 规则计算），仅用于对照编码器；**实测抓包记录**已固化在 [`HARDWARE-VERIFICATION.md`](./HARDWARE-VERIFICATION.md)（2026-11-14，固件 `V1.1.22`），后续抓包可另存为 `captures/*.jsonl`。
 - 若后续实测推翻本文任何 🔶/❓ 结论，直接在该结论处改为 ✅ 并注明「实测日期 + 抓包文件」。
 - 引用外部源码时优先引用 **commit/raw 链接**（仓库可能变动），本文已尽量给出 raw/固定路径。

@@ -10,7 +10,7 @@
 ## ⚠️ 安全须知（先读这一节）
 
 - **烘干 = 真实加热。** 启动后设备里的 PTC 会升温到设定温度（上限 65 ℃），旁边就是线材、纸盒和塑料件。**烘干全程必须有人值守**，离开前先停止。
-- **协议未在真机验证。** 帧格式、CRC、命令号、状态字段都来自社区逆向工程，可能有固件差异；第一次跑请按 [docs/DRYING.md](docs/DRYING.md) 的「首次试机」步骤来。
+- **已真机验证（2026-11-14，固件 `V1.1.22`）。** 握手、2 s 状态轮询、烘干启动/停止都已在真实 ACE2 Pro 上跑通，所有真实收发帧与 CRC 记录见 [docs/HARDWARE-VERIFICATION.md](docs/HARDWARE-VERIFICATION.md)。协议来自社区逆向，其他固件版本仍可能有差异；首次使用请按 [docs/DRYING.md](docs/DRYING.md) 的「首次试机」步骤来。
 - **断线不会停止加热。** USB 松脱 / App 退出 / 手机没电后，App 无法再发停止命令，设备会继续按设定时长加热；停不下来时**直接断设备电源**。
 - 温度硬限制 **30–65 ℃**、时长 **10–1440 分钟**；启动前有二次确认；故障码出现时立即停止。
 - 完整安全说明、线材温度参考与故障处理见 **[docs/DRYING.md](docs/DRYING.md)**。
@@ -57,13 +57,13 @@ APK 由 GitHub Actions 构建，不在仓库里存二进制：
 
 ```text
 手机（USB Host / OTG）
-   └── OTG 转接 → USB 转 RS-485 模块（CH340 / CH341A / CP210x / FTDI / PL2303）
+   └── OTG 转接 → USB 转 RS-485 模块（CH343 / CH340 / CH341A / CP210x / FTDI / PL2303）
           └── A / B / GND → Anycubic ACE2 Pro 的 RS-485 通讯口
 ```
 
 - 只用 3 根线：**A、B、GND**；**不接设备的 5V**，转换器由手机供电即可；
 - A/B 接反的表现是「完全没回包」，断电后对调试一次；
-- 官方 ACE2 线缆是 CH343（`1a86:55d3`），`usb-serial-for-android 3.8.1` 没有该芯片驱动，插上通常识别不到 → 用上面的转换器；
+- 官方/兼容 ACE2 线缆是 **CH343（`1a86:55d3`）**：实测在 `usb-serial-for-android 3.8.1` 下以 **CDC-ACM** 枚举，被 `CdcAcmSerialDriver` 接住，230400 下通信正常（见 [docs/HARDWARE-VERIFICATION.md](docs/HARDWARE-VERIFICATION.md)）——不必再换芯片；CH340 等其他转换器同样可用；
 - 手机 OTG 要打开（部分机型在设置里有开关）；不要用只能充电的线；
 - **单主站**：不要把手机和打印机主机同时接到同一条 RS-485 总线。
 
@@ -99,7 +99,7 @@ APK 由 GitHub Actions 构建，不在仓库里存二进制：
 |---|---|---|
 | 语言 | Kotlin 2.0.21 | `kotlin.code.style=official` |
 | UI | AndroidX + Material 3 | 单 Activity + XML：控制台 + 状态卡 + 烘干面板 |
-| USB 串口 | `com.github.mik3y:usb-serial-for-android:3.8.1`（JitPack） | 自带 CH340/CH341A、CP210x、FTDI、PL2303；CH343/CH9102 无专用驱动 |
+| USB 串口 | `com.github.mik3y:usb-serial-for-android:3.8.1`（JitPack） | 自带 CH340/CH341A、CP210x、FTDI、PL2303；CH343/CH9102 无专用驱动，但若以 CDC-ACM 枚举则由通用 `CdcAcmSerialDriver` 接住（CH343 `1a86:55d3` 已实测可用） |
 | 协议 | 自研 `Ace2Protocol` / `Ace2Client` | CRC16/MCRF4XX、protobuf 极简编解码、半双工单在途请求队列 |
 | 构建 | AGP 8.5.2 + Gradle 8.7 | 仓库**不提交** Gradle Wrapper，版本由 CI 指定 |
 | JDK | 17（Temurin） | `compileOptions` / `kotlinOptions` 均为 17 |
@@ -128,6 +128,7 @@ AceSolo/
 │           └── xml/device_filter.xml  # USB 转串口芯片的插入唤起白名单（十进制 VID/PID）
 ├── docs/
 │   ├── DRYING.md                  # 烘干操作、安全、真实请求帧与 CRC 自校验
+│   ├── HARDWARE-VERIFICATION.md   # 2026-11-14 真机验证记录：真实收发帧、字段解析、复算脚本
 │   ├── ace2-protocol-notes.md     # ACE2 Pro 协议调研笔记（来源等级、命令表、状态字段）
 │   └── GITHUB_ACTIONS.md          # 云构建操作手册（建仓库 / PAT / 触发 / 下载 / 排查）
 ├── tools/
@@ -199,19 +200,20 @@ workflow 关键步骤：
 
 ## 8. 已知限制与未验证项
 
-- **未在真机 ACE2 Pro 上验证。** 协议来自社区逆向（`acepro-any-klipper`、multiACE、Simon-CR 等实现互相印证），帧示例是按协议合成的，不是实测抓包；`tools/verify_ace2.py` 的 120 项通过只说明「实现与参考实现一致」，不等于硬件可用。
+- **已在本机真机验证（2026-11-14，固件 `V1.1.22`，CH343 CDC-ACM）**：握手、状态轮询、烘干启动/停止全部跑通；真实帧与逐字段解析见 [docs/HARDWARE-VERIFICATION.md](docs/HARDWARE-VERIFICATION.md)。仍未验证：其他固件版本、升温曲线与温控稳定性、烘干中断线行为、CH9102 等其他芯片。
 - 只支持单台设备（`device_id=1`），地址不持久，每次连接重新握手。
 - 不读/不写 RFID；不支持固件升级（IAP）；进料/回抽/风扇/阀门/闪灯未接界面。
-- 官方 CH343 线缆在 `usb-serial-for-android 3.8.1` 下无驱动，需要 CH340/CH341A/CP210x/FTDI/PL2303 转换器。
+- 适配器：CH343（CDC-ACM）已实测可用；CH340/CH341A/CP210x/FTDI/PL2303 理论可用，未逐一实测。
 - 半双工总线无仲裁：App 与打印机主机不能同时接管；断线后设备不会自动停止加热。
 - `GET_STATUS` 的烘干状态字段若带 bit6/bit7 标记，App 会显示「未知」（按裸值查表，真机确认后再改）。
+- `GET_STATUS` 中的 field 5 / field 6（实测恒为 1）与槽位 field 9 的语义尚未完全确认，UI 暂不显示。
 - 状态卡不显示槽位/RFID 信息。
 
 ## 9. 常见问题
 
 | 现象 | 处理 |
 |---|---|
-| 日志「未发现 USB 串口设备」/「未识别该设备的串口驱动」 | 确认 OTG、换数据线；换 CH340 / CP210x 转换器（CH343 无驱动） |
+| 日志「未发现 USB 串口设备」/「未识别该设备的串口驱动」 | 确认 OTG、换数据线；CH343（`1a86:55d3`，CDC-ACM）与 CH340 / CP210x 均已验证/可用；插着 USB 网卡等其他设备时先拔掉 |
 | 「openDevice 返回 null」 | 重新插拔并授权；关掉其他串口 App |
 | 连接后「发现失败：设备无应答」 | A/B 对调、共地、确认 230400、设备唤醒、断开打印机主机 |
 | 启动烘干 `code=1/2` | 参数超范围或设备忙；等就绪后用 40–60 ℃ / 30–120 分钟先试 |
