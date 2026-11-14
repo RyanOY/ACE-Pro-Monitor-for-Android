@@ -274,6 +274,22 @@
       }
     },
     {
+      "name": "discover_device_response",
+      "payload_hex": "08 C4 E6 88 89 01 10 88 EF 99 AB 05 18 CC F7 AA CD 09",
+      "frame_hex": "FF AA 80 01 00 00 12 08 C4 E6 88 89 01 10 88 EF 99 AB 05 18 CC F7 AA CD 09 6A 2D FE",
+      "expected": {
+        "response_count": 1,
+        "leftover_hex": "",
+        "notices": [],
+        "id": 1,
+        "flags": 128,
+        "device_id": 0,
+        "uid1": 287454020,
+        "uid2": 1432778632,
+        "uid3": 2578103244
+      }
+    },
+    {
       "name": "drying_generic_code_0",
       "payload_hex": "08 00",
       "frame_hex": "FF AA 81 05 00 0B 02 08 00 AD C5 FE",
@@ -344,14 +360,17 @@
     },
     {
       "name": "split_header_keeps_trailing_ff",
-      "input_hex": "00 11 22 33 FF",
+      "input_hex": "00 11 22 33 44 55 66 77 88 99 FF",
       "expected": {
-        "first_buffered_hex": "00 11 22 33 FF",
+        "first_buffered_hex": "FF",
         "response_count": 0,
-        "after_rest_response_count": 0,
+        "first_notices": [
+          "Resync: dropped junk (10 bytes)"
+        ],
+        "after_rest_response_count": 1,
         "after_rest_leftover_hex": ""
       },
-      "continued_input_hex": "81 03 00 06 1E 08 01 12 0A 08 02 10 37 18 C0 70 20 A8 0A 18 34 20 26 4A 04 08 00 10 03 4A 04 08 01 10 03 18 0E FE"
+      "continued_input_hex": "AA 81 03 00 06 1E 08 01 12 0A 08 02 10 37 18 C0 70 20 A8 0A 18 34 20 26 4A 04 08 00 10 03 4A 04 08 01 10 03 18 0E FE"
     },
     {
       "name": "two_frames_one_read",

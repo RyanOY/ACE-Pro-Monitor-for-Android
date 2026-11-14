@@ -632,6 +632,31 @@ def build_vectors() -> dict:
         }
     )
 
+    # DISCOVER_DEVICE response decode (UID triplet)
+    discover_payload = _pb_uint32(1, 0x11223344) + _pb_uint32(2, 0x55667788) + _pb_uint32(3, 0x99AABBCC)
+    discover_frame = build_response_frame(
+        discover_payload, 0x80, 1, COMMANDS_BY_NAME["DISCOVER_DEVICE"]
+    )
+    discover_parsed, discover_leftover, discover_notices = extract_responses(discover_frame)
+    vectors["responses"].append(
+        {
+            "name": "discover_device_response",
+            "payload_hex": hx(discover_payload),
+            "frame_hex": hx(discover_frame),
+            "expected": {
+                "response_count": len(discover_parsed),
+                "leftover_hex": hx(discover_leftover),
+                "notices": discover_notices,
+                "id": discover_parsed[0]["id"],
+                "flags": discover_parsed[0]["flags"],
+                "device_id": discover_parsed[0].get("device_id", 0),
+                "uid1": discover_parsed[0]["result"]["uid1"],
+                "uid2": discover_parsed[0]["result"]["uid2"],
+                "uid3": discover_parsed[0]["result"]["uid3"],
+            },
+        }
+    )
+
     # GenericResponse decode (code=0 success, code=2 forbidden)
     for code in (0, 2):
         gen_payload = _pb_uint32(1, code)
@@ -716,11 +741,11 @@ def build_vectors() -> dict:
             },
         }
     )
-    # k5 split header across reads: junk + trailing 0xFF, then frame starting AA
-    split = b"\x00\x11\x22\x33\xFF"
-    first = good[:2]  # FF AA
-    body = good[2:]
-    k5a, k5aleft, _ = extract_responses(split)
+    # k5 split header across reads: junk (>=10 bytes) + trailing 0xFF, then the
+    # rest of the frame arriving with its leading 0xFF already consumed.
+    split = b"\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xFF"
+    body = good[1:]  # header resume: 0xAA + flags + ...
+    k5a, k5aleft, k5anotices = extract_responses(split)
     k5b, k5bleft, k5bnotices = extract_responses(bytes(k5aleft) + body)
     vectors["robustness"].append(
         {
@@ -729,6 +754,7 @@ def build_vectors() -> dict:
             "expected": {
                 "first_buffered_hex": hx(k5aleft),
                 "response_count": len(k5a),
+                "first_notices": k5anotices,
                 "after_rest_response_count": len(k5b),
                 "after_rest_leftover_hex": hx(k5bleft),
             },

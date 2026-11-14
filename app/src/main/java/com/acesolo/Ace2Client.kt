@@ -62,6 +62,9 @@ class Ace2Client(
     private var statusMisses = 0
     private var pollScheduled = false
 
+    /** 最近一次实际写入总线的帧：用于识别半双工转换器把 TX 回显到 RX 的情况。 */
+    private var lastTxBytes: ByteArray? = null
+
     /** 最近一次成功下发的烘干参数，用于状态里目标温度缺失时兜底显示。 */
     var lastDryingTempC: Int = 0
         private set
@@ -239,6 +242,7 @@ class Ace2Client(
         inFlightId = id
 
         val bytes = Ace2Protocol.buildRequest(id, request.command, request.payload)
+        lastTxBytes = bytes
         log("→ ${request.label} #$id (${request.attempts}/${request.maxAttempts}) ${UsbSerialManager.toHex(bytes)}")
 
         val ok = try {
@@ -252,6 +256,7 @@ class Ace2Client(
             inFlightId = 0
             log("!! ${request.label} 发送失败（串口未打开）")
             request.onResult(null)
+            pump()
             return
         }
         handler.removeCallbacks(timeoutRunnable)
@@ -277,7 +282,12 @@ class Ace2Client(
         log("← ${frame.commandName} #${frame.requestId} flags=0x${hex2(frame.flags)} ${UsbSerialManager.toHex(frame.payload)}")
 
         val request = inFlight
-        if (request != null && frame.requestId == inFlightId) {
+        if (request != null && frame.requestId == inFlightId && frame.commandCode == request.command) {
+            if (!frame.isResponse && isEchoOfLastTx(frame)) {
+                // 半双工转换器把本机刚发出的请求回显到 RX：不是应答，继续等真正的响应
+                log("… 忽略串口回显帧（flags 无 0x80 且与 TX 完全一致）")
+                return
+            }
             inFlight = null
             inFlightId = 0
             handler.removeCallbacks(timeoutRunnable)
@@ -288,7 +298,14 @@ class Ace2Client(
             }
             pump()
         }
-        // 未匹配的帧（迟到应答/广播应答）忽略：单设备场景下重试会拿到新的 id 应答
+        // 未匹配的帧（迟到应答/广播应答/命令不符）忽略：单设备场景下重试会拿到新的 id 应答
+    }
+
+    /** 判断一帧是否就是把 [lastTxBytes] 原样回显回来的请求帧。 */
+    private fun isEchoOfLastTx(frame: Ace2Frame): Boolean {
+        val tx = lastTxBytes ?: return false
+        val rebuilt = Ace2Protocol.buildFrame(frame.flags, frame.requestId, frame.commandCode, frame.payload)
+        return rebuilt.contentEquals(tx)
     }
 
     private fun resetSession() {
@@ -302,6 +319,7 @@ class Ace2Client(
         firmwareVersion = ""
         lastDryingTempC = 0
         lastDryingMinutes = 0
+        lastTxBytes = null
     }
 
     private fun setState(newState: State, detail: String) {
