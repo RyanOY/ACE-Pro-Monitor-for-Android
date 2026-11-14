@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AceSolo</string>
+    <string name="title">ACE2 Pro · 串口控制台</string>
+
+    <!-- 连接状态 -->
+    <string name="status_idle">未连接</string>
+    <string name="status_connected">已连接</string>
+
+    <!-- 按钮 -->
+    <string name="btn_connect">连接 USB 串口</string>
+    <string name="btn_disconnect">断开串口</string>
+    <string name="btn_send">发送</string>
+    <string name="btn_clear">清空日志</string>
+
+    <!-- 输入与标签 -->
+    <string name="hex_hint">例如：AA 55 01 00（十六进制）</string>
+    <string name="baud_label">波特率</string>
+    <string name="log_label">收发日志</string>
+
+    <!-- 底部说明（协议命令 v0.2 接入） -->
+    <string name="footer_note">查询状态 / 进料 / 回抽 / 停止 —— 待协议帧确认后接入（v0.2）</string>
+
+    <!-- 波特率可选项，顺序与 MainActivity.baudRates 一致 -->
+    <string-array name="baud_rates">
+        <item>115200</item>
+        <item>230400</item>
+        <item>921600</item>
+        <item>250000</item>
+        <item>57600</item>
+    </string-array>
+</resources>

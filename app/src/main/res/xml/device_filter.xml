@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- USB 串口设备过滤器：插入匹配的 USB 转串口芯片时唤起 AceSolo。
+     vendor-id / product-id 必须是十进制（AOSP UsbDeviceFilter 解析为整数）。 -->
+<resources>
+    <!-- WCH CH340  1A86:7523 -->
+    <usb-device vendor-id="6790" product-id="29987" />
+    <!-- WCH CH341  1A86:5523 -->
+    <usb-device vendor-id="6790" product-id="21795" />
+    <!-- WCH CH343  1A86:55D3 -->
+    <usb-device vendor-id="6790" product-id="21971" />
+    <!-- WCH CH9102 1A86:55D4 -->
+    <usb-device vendor-id="6790" product-id="21972" />
+    <!-- Silicon Labs CP210x  10C4:EA60 -->
+    <usb-device vendor-id="4292" product-id="60000" />
+    <!-- FTDI FT232  0403:6001 -->
+    <usb-device vendor-id="1027" product-id="24577" />
+    <!-- Prolific PL2303  067B:2303 -->
+    <usb-device vendor-id="1659" product-id="8963" />
+</resources>
