@@ -2,6 +2,7 @@
 
 > 面向 AceSolo（Android USB Host 接入）的第一轮协议资料汇总。
 > 结论均标注来源等级；**本项目自研实现尚未开始，本文所有帧示例都是按协议合成的，不是实测抓包**。
+> **v0.2 补充（2026-11）**：上一句是 v0.1 写作时的状态，已过时——v0.2.0 已实现 USB 串口连接、`DISCOVER_DEVICE`/`ASSIGN_DEVICE_ID`/`GET_INFO` 握手、`DRYING` 启动/停止与 2 s 状态轮询。帧示例仍是**按协议合成、未在真机抓包验证**。实现清单见新增的 §0 与 §4.1 的「v0.2 实现」列，操作与帧逐字节说明见 [`DRYING.md`](./DRYING.md)。
 >
 > - 标记说明：✅ 有来源的事实（文档/代码/实测记录可查）｜🔶 推断或社区实现约定（多个实现一致，但无官方说明）｜❓ 待验证（存在冲突或只有单一来源）｜⚠️ 安全注意
 > - 调研时间：2026-11（来源 URL 见各节）
@@ -11,6 +12,7 @@
 
 ## 目录
 
+0. [v0.2 实现状态](#0-v02-实现状态)
 1. [概览与代际差异](#1-概览与代际差异)
 2. [物理层](#2-物理层)
 3. [帧格式](#3-帧格式)
@@ -21,6 +23,28 @@
 8. [风险与安全注意](#8-风险与安全注意)
 9. [附录 A：protobuf 消息字段速查](#附录-aprotobuf-消息字段速查)
 10. [附录 B：待验证清单](#附录-b待验证清单)
+
+---
+
+## 0. v0.2 实现状态
+
+> 本节是 v0.1 调研文档的增量备注：**下面的原始调研内容全部保留**，这里只记录哪些结论已经落进 v0.2 代码、哪些还没有。更新于 2026-11。
+
+v0.2.0（Android，`com.acesolo`，`versionCode 2`）的实际实现范围：
+
+| 能力 | 状态 | 说明 |
+|---|---|---|
+| USB Host 串口连接（230400 8N1） | ✅ 已实现 | CH340/CH341A/CP210x/FTDI/PL2303；官方 CH343 线（`1a86:55d3`）在 usb-serial-for-android 3.8.1 下无驱动 |
+| 自动握手：DISCOVER → ASSIGN(1) → GET_INFO | ✅ 已实现 | 每次连接重新握手；地址上电后不持久 |
+| `DRYING` 启动 / 停止（cmd 11） | ✅ 已实现 | 30–65 ℃ / 10–1440 分钟，UI 二次确认；`auto_roll` 固定 false |
+| `GET_STATUS` 2 s 轮询与状态卡 | ✅ 已实现 | 工作状态 / 温度 / 湿度 / 烘干状态 / 目标温度 / 剩余时间 |
+| 原始帧 hex 日志 + 手动 hex 发送 | ✅ 已实现 | 沿用 v0.1 调试台 |
+| 进料/回抽、RFID、固件升级（IAP）、多机总线 | ✖ 未实现 | 部分命令在 `Ace2Protocol.kt` 里有 payload 封装，界面未接（见 §4.1 新增列） |
+| 真机抓包验证 | ✖ 未验证 | **本文所有协议结论仍来自社区逆向；帧示例为合成，不是实测** |
+
+- 帧格式 / CRC 以 §3 的**驱动实现布局**为准：`FF AA | flags | id(le16) | cmd | len | payload | crc16(le16) | FE`，CRC16/MCRF4XX 覆盖 `frame[2 .. 7+len)`。
+- 已知单位差异：`DRYING` **请求**的 `duration` = 分钟，`GET_STATUS` 里的 `duration` / `remain_time` = 秒（§5.4 已就地标注）。
+- 烘干报文逐字节说明、真实请求帧与 CRC 自校验脚本见 [`DRYING.md`](./DRYING.md)。
 
 ---
 
@@ -99,7 +123,7 @@ ACE 2 Pro 侧面是 6 针 Micro-Fit 3.0（2×3）信号口，社区实测的引�
 - RS-485 的 A/B 命名没有统一标准，接反不损坏但收不到数据；「枚举成功但无应答 → 保持 GND，只对调 A/B」。
 - 接线前断电，注意 6 针方向（防呆卡扣）。
 
-### 2.3 Android USB Host 接入要点（给后续 MVP 用）
+### 2.3 Android USB Host 接入要点（v0.2 已按此接入）
 
 以下是工程结论，非协议事实（🔶，基于 Android USB Host API 与 CDC-ACM 规范）：
 
@@ -232,29 +256,31 @@ def crc16(data: bytes, crc: int = 0xFFFF) -> int:
 
 ### 4.1 已知命令
 
-| cmd | 名称 | 请求字段（字段号） | 应答 | 用途/备注 |
-|---|---|---|---|---|
-| 0 | `DISCOVER_DEVICE` | 空 | `DiscoverDeviceResponse{uid1=1,uid2=2,uid3=3}` | 多机发现；单机可跳过（地址 0）✅ |
-| 1 | `ASSIGN_DEVICE_ID` | `AssignDeviceIdRequest{uid1=1,uid2=2,uid3=3,device_id=4}` | 通用应答 | 给设备分配地址；之后按地址通信 ✅ |
-| 5 | `IAP_VERSION` | ？ | ？ | 固件升级/版本相关，未验证 ❓ |
-| 6 | `GET_STATUS` | 空 | `StatusResponse`（§5.1） | **最核心的只读轮询命令** ✅ |
-| 7 | `GET_INFO` | 空 | `InfoResponse{version=1,boot_version=2,first_request=3}` | 版本信息、是否首次请求 ✅ |
-| 8 | `FEED_OR_ROLLBACK` | `FeedOrRollbackRequest{index=1,speed=2,length=3,mode=4}` | `GenericResponse{code=1}` | 进料/回抽/助力（§4.3）✅ |
-| 9 | `STOP_FEED_OR_ROLLBACK` | `StopFeedOrRollbackRequest{index=1}` | 通用应答 | 停止该槽位动作（不区分进/回抽）✅ |
-| 10 | `UPDATE_SPEED` | `UpdateSpeedRequest{index=1,speed=2}` | 通用应答 | 运行中改速（V1 兼容用）✅ |
-| 11 | `DRYING` | `DryingRequest{temp=1,duration=2,auto_roll=3}` | 通用应答 | 开始/停止干燥（`temp=0,duration=0` 即停止）✅ |
-| 12 | `SET_DRY_TEMP` | `SetDryTempRequest{temp=1}` | 通用应答 | 设干燥目标温度 ✅ |
-| 13 | `GET_FILAMENT_INFO` | `GetMaterialInfoRequest` / index | `FilamentInfoResponse`（RFID 信息） | 读耗材/RFID 缓存（§5.7）✅ |
-| 14 | `SET_RFID_ENABLE` | `SetRfidEnableRequest{index=1,enable=2}` | 通用应答 | 开关 RFID ✅ |
-| 19 | `SET_FEED_CHECK` | `SetFeedCheckRequest{check_length=1,error_length=2}` | 通用应答 | 进料检测阈值（错误长度默认 254）✅ |
-| 64 | `GET_TEMP` | 空 | `GetTempResponse`（6–7 个 float32，§5.5） | 温度/湿度 ✅ |
-| 65 | `SET_DRY_POWER` | `SetDryPowerRequest{power=1}` | 通用应答 | 干燥功率 ✅ |
-| 66 | `SET_VALVE` | `SetValveRequest{valve1=1,valve2=2}` | 通用应答 | 气阀（2 个 bool）✅ |
-| 68 | `FILAMENT_IDENTIFY` | index | 通用应答；失败码 6=`READFAILED` | 触发 RFID 识别（设备忙时 `FAILED`）✅ |
-| 70 | `FLASH_LED` | `FlashLedRequest{components=1,loop=2,quick1=3,slow1=4,quick2=5,slow2=6}` | 通用应答 | 闪灯（状态指示，可用于「找到设备」）✅ |
-| 71 | `SET_FAN` | `SetFanRequest{speed=1,fan1=2,fan2=3}` | 通用应答 | 风扇 ✅ |
-| 73 | `GET_KEY_STATE` / `GET_SENSOR_STATE` | 空 | `GetSensorStateResponse{state=1}` | 按键/传感器状态（两种命名指同一命令）🔶 |
-| 76 | `GET_FEED_INFO` | 空 | `FeedInfoResponse{feed_info=1 repeated}`（每槽位一条） | 进料计数/长度/编码器（§5.6）✅ |
+| cmd | 名称 | 请求字段（字段号） | 应答 | 用途/备注 | v0.2 实现 |
+|---|---|---|---|---|---|
+| 0 | `DISCOVER_DEVICE` | 空 | `DiscoverDeviceResponse{uid1=1,uid2=2,uid3=3}` | 多机发现；单机可跳过（地址 0）✅ | ✅ 连接后自动发（flags=0） |
+| 1 | `ASSIGN_DEVICE_ID` | `AssignDeviceIdRequest{uid1=1,uid2=2,uid3=3,device_id=4}` | 通用应答 | 给设备分配地址；之后按地址通信 ✅ | ✅ 固定分配 `device_id=1` |
+| 5 | `IAP_VERSION` | ？ | ？ | 固件升级/版本相关，未验证 ❓ | ✖ 未实现 |
+| 6 | `GET_STATUS` | 空 | `StatusResponse`（§5.1） | **最核心的只读轮询命令** ✅ | ✅ 每 2 s 轮询 + 手动查询 |
+| 7 | `GET_INFO` | 空 | `InfoResponse{version=1,boot_version=2,first_request=3}` | 版本信息、是否首次请求 ✅ | ✅ 握手时读固件版本 |
+| 8 | `FEED_OR_ROLLBACK` | `FeedOrRollbackRequest{index=1,speed=2,length=3,mode=4}` | `GenericResponse{code=1}` | 进料/回抽/助力（§4.3）✅ | ◻ payload 已封装，UI 未接 |
+| 9 | `STOP_FEED_OR_ROLLBACK` | `StopFeedOrRollbackRequest{index=1}` | 通用应答 | 停止该槽位动作（不区分进/回抽）✅ | ◻ payload 已封装，UI 未接 |
+| 10 | `UPDATE_SPEED` | `UpdateSpeedRequest{index=1,speed=2}` | 通用应答 | 运行中改速（V1 兼容用）✅ | ◻ payload 已封装，UI 未接 |
+| 11 | `DRYING` | `DryingRequest{temp=1,duration=2,auto_roll=3}` | 通用应答 | 开始/停止干燥（`temp=0,duration=0` 即停止）✅ | ✅ 启动 / 停止烘干 |
+| 12 | `SET_DRY_TEMP` | `SetDryTempRequest{temp=1}` | 通用应答 | 设干燥目标温度 ✅ | ◻ payload 已封装，UI 未接 |
+| 13 | `GET_FILAMENT_INFO` | `GetMaterialInfoRequest` / index | `FilamentInfoResponse`（RFID 信息） | 读耗材/RFID 缓存（§5.7）✅ | ◻ payload 已封装，UI 未接 |
+| 14 | `SET_RFID_ENABLE` | `SetRfidEnableRequest{index=1,enable=2}` | 通用应答 | 开关 RFID ✅ | ◻ payload 已封装，UI 未接 |
+| 19 | `SET_FEED_CHECK` | `SetFeedCheckRequest{check_length=1,error_length=2}` | 通用应答 | 进料检测阈值（错误长度默认 254）✅ | ✖ 未实现 |
+| 64 | `GET_TEMP` | 空 | `GetTempResponse`（6–7 个 float32，§5.5） | 温度/湿度 ✅ | ✖ 未实现 |
+| 65 | `SET_DRY_POWER` | `SetDryPowerRequest{power=1}` | 通用应答 | 干燥功率 ✅ | ✖ 未实现 |
+| 66 | `SET_VALVE` | `SetValveRequest{valve1=1,valve2=2}` | 通用应答 | 气阀（2 个 bool）✅ | ✖ 未实现 |
+| 68 | `FILAMENT_IDENTIFY` | index | 通用应答；失败码 6=`READFAILED` | 触发 RFID 识别（设备忙时 `FAILED`）✅ | ✖ 未实现 |
+| 70 | `FLASH_LED` | `FlashLedRequest{components=1,loop=2,quick1=3,slow1=4,quick2=5,slow2=6}` | 通用应答 | 闪灯（状态指示，可用于「找到设备」）✅ | ✖ 未实现 |
+| 71 | `SET_FAN` | `SetFanRequest{speed=1,fan1=2,fan2=3}` | 通用应答 | 风扇 ✅ | ✖ 未实现 |
+| 73 | `GET_KEY_STATE` / `GET_SENSOR_STATE` | 空 | `GetSensorStateResponse{state=1}` | 按键/传感器状态（两种命名指同一命令）🔶 | ✖ 未实现 |
+| 76 | `GET_FEED_INFO` | 空 | `FeedInfoResponse{feed_info=1 repeated}`（每槽位一条） | 进料计数/长度/编码器（§5.6）✅ | ✖ 未实现 |
+
+**「v0.2 实现」列图例**：✅ = 已接入并在连接流程/烘干中实际发送；◻ = `Ace2Protocol.kt` 里有 payload 编码函数，但界面未调用（改了也发不出去）；✖ = 未实现，仅作资料。
 
 命令号 67、69、74、77、78 在固件里有痕迹但未在命令表中注册（社区观察到 67=DRY_TEST、69=RFID_TEST、74=SET_KEY_LOG_ENABLE，72/77/78 只有占位名）；**不要调用**，行为未知。✅/❓（来自固件调度表分析，未实测）
 
@@ -366,7 +392,9 @@ def crc16(data: bytes, crc: int = 0xFFFF) -> int:
 | 3 | uint32 | 总时长，**秒** | ✅ |
 | 4 | uint32 | 剩余时间，**秒** | ✅ |
 
-⚠️ 单位坑：`DRYING` **请求**的 `duration` 是**分钟**，而状态里的 `duration`/`remain_time` 是**秒**（相差 60 倍）。✅（Simon-CR 明确记录）本项目 MVP **不做加热**，但读状态时要知道这个差异。
+⚠️ 单位坑：`DRYING` **请求**的 `duration` 是**分钟**，而状态里的 `duration`/`remain_time` 是**秒**（相差 60 倍）。✅（Simon-CR 明确记录）
+
+> **v0.2 就地修正（2026-11）**：本段 v0.1 原文写「本项目 MVP **不做加热**」，该结论已被 v0.2 推翻——v0.2 已实现烘干启动/停止（`DRYING`，cmd 11）：请求按**分钟**下发（10–1440），应答按**秒**显示（UI 用 `剩余秒/60` 换算成 `x分y秒`）；停止 = `temp=0, duration=0, auto_roll=false`。真实请求帧与 python3 CRC 自校验见 [`DRYING.md`](./DRYING.md#64-真实请求帧启动烘干-55---240-分钟)。
 
 ### 5.5 `GET_TEMP`（cmd 64）应答 `GetTempResponse`
 
@@ -588,9 +616,11 @@ for cmd_name, cmd in [('GET_INFO', 7), ('GET_STATUS', 6),
 
 ## 8. 风险与安全注意
 
-**默认原则：第一轮只读；所有写操作先空载短距离；加热类功能（干燥）暂不做。**
+**默认原则：第一轮只读；所有写操作先空载短距离；加热类功能必须满足下面的前置条件再调用。**
 
-1. ⚠️ **不加热**：`DRYING`/`SET_DRY_TEMP`/`SET_DRY_POWER` 会让 PTC 加热到 55–65 ℃ 并可能转动卷盘（`auto_roll`）。MVP 不调用；即使调用也要确认箱内无耗材、无人接触、有温度监控与超时。
+> **v0.2 更新（2026-11）**：v0.1 时「加热类功能暂不做」；v0.2 已实际接入 `DRYING` 的启动/停止（30–65 ℃、10–1440 分钟、二次确认、`auto_roll` 关闭），所以第 1 条不再禁止，而是「按条件做、全程值守」。`SET_DRY_TEMP` / `SET_DRY_POWER` 仍未接入。详见 [`DRYING.md`](./DRYING.md)。
+
+1. ⚠️ **加热（v0.2 已实现 `DRYING`）**：`DRYING`/`SET_DRY_TEMP`/`SET_DRY_POWER` 会让 PTC 加热到 55–65 ℃ 并可能转动卷盘（`auto_roll`）。v0.2 只接了 `DRYING` 启动/停止，安全边界：目标温度 30–65 ℃（官方 `max_dryer_temperature = 65`）、时长 10–1440 分钟、UI 二次确认。即便如此仍必须：料盒盖关闭、箱内只放需要烘干的线材、周围通风无易燃物、**全程有人值守**、随时可断设备电源；无人看管时不要启动，USB 断开后设备不会自动停止。
 2. ⚠️ **电机动作**：feed/rollback/assist 会真的转电机。要求：料盘/料路安全、手指远离齿轮、短长度低速先行（speed 10–20、length ≤20 mm）、随时可断电。**assist（mode 2/3）是持续动作**，无人值守时最危险——必须有看门狗定时 STOP；若 STOP 也无效，直接断 ACE 的 24V（不是拔 USB）。
 3. ⚠️ **单主机**：不要把手机和打印机同时接到 ACE 的 RS-485 上（§2.4）。切换主机前先断开一方电源/总线。
 4. ⚠️ **电气**：不接 ACE 的 5V；共地；断电接线；不要热插拔 6 针连接器（先断 24V）；注意防静电。
