@@ -95,8 +95,7 @@ workflow 关键步骤：
 | --- | --- |
 | Checkout | `actions/checkout@v4` |
 | Set up JDK 17 | `actions/setup-java@v4`，`temurin` |
-| Set up Android SDK | `android-actions/setup-android@v3` |
-| 安装 SDK 包 | `sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"` |
+| 校验 Android SDK | 直接用 runner 预装的 `ANDROID_HOME`；缺 `platforms;android-34` / `build-tools;34.0.0` 时用 `sdkmanager` 补装（**不用** `setup-android@v3` —— 它会装已下线的 `tools` 包并失败） |
 | Set up Gradle | `gradle/actions/setup-gradle@v3`，`gradle-version: 8.7` |
 | 编译 | `gradle assembleDebug --no-daemon --stacktrace` |
 | 上传产物 | `actions/upload-artifact@v4`，`name: AceSolo-debug`，路径 `app/build/outputs/apk/debug/app-debug.apk` |

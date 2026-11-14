@@ -149,8 +149,8 @@ workflow 名称为 **`Build APK`**，触发条件：
 | 症状（日志关键字） | 原因 | 处理 |
 | --- | --- | --- |
 | `Unsupported class file major version 65/61`、`Could not determine java version` | JDK 版本不对（runner 默认 JDK 不是 17，或 setup-java 没生效） | 确认 `Set up JDK 17` 在构建之前；workflow 固定 `java-version: '17'` + `temurin`；本工程 Kotlin/Java target 都是 17，不要混用 JDK 21 |
-| `Failed to find target with hash string 'android-34'`、`compileSdk 34 not found` | Android SDK 平台包没装 | 确认 `Install Android SDK packages` 执行了 `sdkmanager --install "platforms;android-34" "build-tools;34.0.0"`；`android-actions/setup-android@v3` 负责下载 commandline-tools 并接受 licenses |
-| `SDK location not found`、`ANDROID_HOME` 相关 | SDK 环境变量缺失 | 同样检查 setup-android 是否成功；本工程不需要 `local.properties`（CI 由环境变量提供） |
+| `Failed to find target with hash string 'android-34'`、`compileSdk 34 not found` | Android SDK 平台包没装 | 看 `Verify Android SDK` 步骤输出；缺包时工作流会用 `$ANDROID_HOME/cmdline-tools/*/bin/sdkmanager` 补装。**不要**再用 `android-actions/setup-android@v3`：它会 `sdkmanager --install "tools"`，该包已下线，action 直接失败 |
+| `SDK location not found`、`ANDROID_HOME` 相关 | SDK 环境变量缺失 | `ubuntu-latest` runner 自带 `ANDROID_HOME`；本工程不需要 `local.properties`，自定义 runner 才需自行设置 |
 | `Minimum supported Gradle version is 8.7`、`AGP 8.5.2 requires Gradle 8.7` | Gradle 版本不匹配 | workflow 已用 `gradle/actions/setup-gradle@v3` 固定 `gradle-version: '8.7'`；**不要提交 gradle-wrapper**，也不要本地改成 8.6 |
 | Kotlin 编译错误：`Unresolved reference: ...`、`e: file:...` | 代码/资源问题 | 按日志里的 `文件:行号` 定位；`Unresolved reference: R` 通常是 `res/` 资源缺失或布局 id 与代码不一致；`jvmTarget` 不一致则检查是否被改成 11/21 |
 | `Could not resolve com.github.mik3y:usb-serial-for-android:3.8.1`、`Could not GET ...` | 依赖下载失败（网络抖动/仓库源缺失） | 确认 `settings.gradle.kts` 里有 `mavenCentral()` 与 `maven { url = uri("https://jitpack.io") }`（usb-serial-for-android **只发布在 JitPack**）；直接 **Re-run all jobs** 重试 |
