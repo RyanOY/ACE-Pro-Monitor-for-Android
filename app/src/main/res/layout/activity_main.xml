@@ -27,7 +27,7 @@
         android:textColor="#9AA4B2"
         android:textSize="12sp" />
 
-    <!-- 波特率 + 连接按钮（spinner 占约 60%，按钮约 40%） -->
+    <!-- 波特率 + 连接按钮 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -53,11 +53,134 @@
             android:text="@string/btn_connect" />
     </LinearLayout>
 
+    <!-- ACE2 状态卡片 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="#171C26"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvAceStatus"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/ace_status_default"
+                android:textColor="#E6EDF3"
+                android:textSize="13sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnQueryStatus"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:minWidth="0dp"
+                android:text="@string/btn_query_status"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvDryerInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/dryer_info_default"
+            android:textColor="#9AA4B2"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- 烘干卡片 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="#171C26"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/etDryTemp"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="@string/temp_hint"
+                android:importantForAutofill="no"
+                android:inputType="number"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:textColor="#E6EDF3"
+                android:textColorHint="#66707C"
+                android:textSize="14sp" />
+
+            <EditText
+                android:id="@+id/etDryDuration"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:hint="@string/duration_hint"
+                android:importantForAutofill="no"
+                android:inputType="number"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:textColor="#E6EDF3"
+                android:textColorHint="#66707C"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnStartDry"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/btn_start_dry" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnStopDry"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="@string/btn_stop_dry" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvDryHint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/dry_hint"
+            android:textColor="#7A8594"
+            android:textSize="11sp" />
+    </LinearLayout>
+
     <!-- hex 输入 + 发送按钮 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="12dp"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
@@ -113,7 +236,7 @@
             android:textSize="12sp" />
     </LinearLayout>
 
-    <!-- 收发日志 -->
+    <!-- 收发日志（占满剩余空间） -->
     <ScrollView
         android:id="@+id/scrollLog"
         android:layout_width="match_parent"

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">AceSolo</string>
-    <string name="title">ACE2 Pro · 串口控制台</string>
+    <string name="title">ACE2 Pro · 烘干控制台</string>
 
     <!-- 连接状态 -->
     <string name="status_idle">未连接</string>
@@ -12,14 +12,43 @@
     <string name="btn_disconnect">断开串口</string>
     <string name="btn_send">发送</string>
     <string name="btn_clear">清空日志</string>
+    <string name="btn_query_status">查询状态</string>
+    <string name="btn_start_dry">启动烘干</string>
+    <string name="btn_stop_dry">停止烘干</string>
 
     <!-- 输入与标签 -->
     <string name="hex_hint">例如：AA 55 01 00（十六进制）</string>
     <string name="baud_label">波特率</string>
     <string name="log_label">收发日志</string>
+    <string name="temp_hint">目标温度 ℃</string>
+    <string name="duration_hint">时长（分钟）</string>
 
-    <!-- 底部说明（协议命令 v0.2 接入） -->
-    <string name="footer_note">查询状态 / 进料 / 回抽 / 停止 —— 待协议帧确认后接入（v0.2）</string>
+    <!-- ACE2 状态卡片 -->
+    <string name="ace_status_default">ACE2：未初始化</string>
+    <string name="dryer_info_default">烘干：—</string>
+    <string name="dry_hint">安全范围 30–65 ℃ / 10–1440 分钟；请先关闭料盒盖并确认线材耐温</string>
+    <string name="footer_note">ACE2 Pro · RS-485 230400 8N1 · 烘干 / 状态 / 原始帧日志（v0.2）</string>
+
+    <!-- 对话框 -->
+    <string name="dialog_start_title">启动烘干</string>
+    <string name="dialog_stop_title">停止烘干</string>
+    <string name="dialog_confirm">确认</string>
+    <string name="dialog_cancel">取消</string>
+    <string name="dialog_start_msg">目标温度 %1$d ℃，时长 %2$d 分钟。\n\n启动前请确认：\n· 料盒盖已关闭，内部装好需要烘干的线材\n· 设备周围通风、无易燃物\n· 烘干过程中不要断电，可用「停止烘干」随时取消\n\n是否启动？</string>
+    <string name="dialog_stop_msg">将立即停止加热，是否继续？</string>
+
+    <!-- Toast -->
+    <string name="toast_temp_invalid">温度需在 30–65 ℃ 之间</string>
+    <string name="toast_duration_invalid">时长需在 10–1440 分钟之间</string>
+    <string name="toast_not_ready">ACE2 尚未就绪，请先连接并等待状态查询成功</string>
+    <string name="toast_dry_started">已发送启动烘干指令</string>
+    <string name="toast_dry_stopped">已发送停止烘干指令</string>
+    <string name="toast_dry_failed">指令失败：%1$s</string>
+
+    <!-- 状态格式化 -->
+    <string name="ace_status_format">ACE2：%1$s · 固件 %2$s · 温度 %3$d ℃ · 湿度 %4$d%%</string>
+    <string name="dryer_info_format">烘干：%1$s · 目标 %2$d ℃ · 当前 %3$d ℃ · 剩余 %4$s</string>
+    <string name="remain_format">%1$d分%2$d秒</string>
 
     <!-- 波特率可选项，顺序与 MainActivity.baudRates 一致 -->
     <string-array name="baud_rates">
@@ -28,5 +57,34 @@
         <item>921600</item>
         <item>250000</item>
         <item>57600</item>
+    </string-array>
+
+    <!-- 工作状态（ACE2 工作状态码） -->
+    <string-array name="work_state_names">
+        <item>初始化</item>
+        <item>就绪</item>
+        <item>忙碌</item>
+        <item>升级中</item>
+        <item>未知</item>
+    </string-array>
+
+    <!-- 烘干状态（索引 = ACE2 状态码 0..5） -->
+    <string-array name="dry_state_names">
+        <item>已停止</item>
+        <item>烘干中</item>
+        <item>烘干中</item>
+        <item>已停止</item>
+        <item>故障</item>
+        <item>故障</item>
+    </string-array>
+
+    <!-- 烘干细节状态（索引 = ACE2 状态码 0..5） -->
+    <string-array name="dry_detail_names">
+        <item>已停止</item>
+        <item>启动中</item>
+        <item>保温中</item>
+        <item>停止中</item>
+        <item>PTC 故障</item>
+        <item>NTC 故障</item>
     </string-array>
 </resources>

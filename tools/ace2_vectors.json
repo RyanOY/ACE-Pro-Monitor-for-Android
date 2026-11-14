@@ -1,0 +1,381 @@
+{
+  "meta": {
+    "generator": "tools/ace2_vectors.py",
+    "oracle": "local reference repo: .acesolo-ci/ref/extras_ace_protocol*.py",
+    "upstream": "https://github.com/ducati1198/acepro-any-klipper",
+    "notes": [
+      "All byte strings are uppercase hex pairs separated by single spaces.",
+      "Request frames use target_device_id=1 except DISCOVER/ASSIGN (flags=0).",
+      "The reference encoder writes default (zero) values explicitly, so a DRYING stop payload is 08 00 10 00 18 00, not empty."
+    ]
+  },
+  "crc": {
+    "known_check_123456789": {
+      "input_hex": "31 32 33 34 35 36 37 38 39",
+      "crc": 28561
+    },
+    "empty": {
+      "input_hex": "",
+      "crc": 65535
+    },
+    "one_zero_byte": {
+      "input_hex": "00",
+      "crc": 3975
+    },
+    "one_ff_byte": {
+      "input_hex": "FF",
+      "crc": 255
+    },
+    "ff_aa": {
+      "input_hex": "FF AA",
+      "crc": 1320
+    }
+  },
+  "requests": [
+    {
+      "name": "discover_device",
+      "command": "DISCOVER_DEVICE",
+      "command_code": 0,
+      "params": {},
+      "request_id": 1,
+      "target_device_id": 0,
+      "flags": 0,
+      "payload_hex": "",
+      "frame_hex": "FF AA 00 01 00 00 00 33 2C FE",
+      "frame_len": 10
+    },
+    {
+      "name": "assign_device_id",
+      "command": "ASSIGN_DEVICE_ID",
+      "command_code": 1,
+      "params": {
+        "uid1": 287454020,
+        "uid2": 1432778632,
+        "uid3": 2578103244,
+        "device_id": 1
+      },
+      "request_id": 2,
+      "target_device_id": 0,
+      "flags": 0,
+      "payload_hex": "08 C4 E6 88 89 01 10 88 EF 99 AB 05 18 CC F7 AA CD 09 20 01",
+      "frame_hex": "FF AA 00 02 00 01 14 08 C4 E6 88 89 01 10 88 EF 99 AB 05 18 CC F7 AA CD 09 20 01 23 8A FE",
+      "frame_len": 30
+    },
+    {
+      "name": "get_status",
+      "command": "GET_STATUS",
+      "command_code": 6,
+      "params": {},
+      "request_id": 3,
+      "target_device_id": 1,
+      "flags": 1,
+      "payload_hex": "",
+      "frame_hex": "FF AA 01 03 00 06 00 D1 4A FE",
+      "frame_len": 10
+    },
+    {
+      "name": "get_info",
+      "command": "GET_INFO",
+      "command_code": 7,
+      "params": {},
+      "request_id": 4,
+      "target_device_id": 1,
+      "flags": 1,
+      "payload_hex": "",
+      "frame_hex": "FF AA 01 04 00 07 00 28 04 FE",
+      "frame_len": 10
+    },
+    {
+      "name": "start_drying",
+      "command": "DRYING",
+      "command_code": 11,
+      "params": {
+        "temp": 55,
+        "duration": 240,
+        "auto_roll": false
+      },
+      "request_id": 5,
+      "target_device_id": 1,
+      "flags": 1,
+      "payload_hex": "08 37 10 F0 01 18 00",
+      "frame_hex": "FF AA 01 05 00 0B 07 08 37 10 F0 01 18 00 78 E3 FE",
+      "frame_len": 17
+    },
+    {
+      "name": "stop_drying",
+      "command": "DRYING",
+      "command_code": 11,
+      "params": {
+        "temp": 0,
+        "duration": 0,
+        "auto_roll": false
+      },
+      "request_id": 6,
+      "target_device_id": 1,
+      "flags": 1,
+      "payload_hex": "08 00 10 00 18 00",
+      "frame_hex": "FF AA 01 06 00 0B 06 08 00 10 00 18 00 61 0B FE",
+      "frame_len": 16
+    },
+    {
+      "name": "start_drying_min_boundary",
+      "command": "DRYING",
+      "command_code": 11,
+      "params": {
+        "temp": 30,
+        "duration": 10,
+        "auto_roll": false
+      },
+      "request_id": 7,
+      "target_device_id": 1,
+      "flags": 1,
+      "payload_hex": "08 1E 10 0A 18 00",
+      "frame_hex": "FF AA 01 07 00 0B 06 08 1E 10 0A 18 00 C4 81 FE",
+      "frame_len": 16
+    },
+    {
+      "name": "start_drying_max_boundary",
+      "command": "DRYING",
+      "command_code": 11,
+      "params": {
+        "temp": 65,
+        "duration": 1440,
+        "auto_roll": false
+      },
+      "request_id": 8,
+      "target_device_id": 1,
+      "flags": 1,
+      "payload_hex": "08 41 10 A0 0B 18 00",
+      "frame_hex": "FF AA 01 08 00 0B 07 08 41 10 A0 0B 18 00 81 2F FE",
+      "frame_len": 17
+    },
+    {
+      "name": "start_drying_auto_roll_true",
+      "command": "DRYING",
+      "command_code": 11,
+      "params": {
+        "temp": 50,
+        "duration": 480,
+        "auto_roll": true
+      },
+      "request_id": 9,
+      "target_device_id": 1,
+      "flags": 1,
+      "payload_hex": "08 32 10 E0 03 18 01",
+      "frame_hex": "FF AA 01 09 00 0B 07 08 32 10 E0 03 18 01 90 72 FE",
+      "frame_len": 17
+    },
+    {
+      "name": "feed_or_rollback_mode0",
+      "command": "FEED_OR_ROLLBACK",
+      "command_code": 8,
+      "params": {
+        "index": 2,
+        "speed": 50,
+        "length": 200,
+        "mode": 0
+      },
+      "request_id": 10,
+      "target_device_id": 1,
+      "flags": 1,
+      "payload_hex": "08 02 10 32 18 C8 01 20 00",
+      "frame_hex": "FF AA 01 0A 00 08 09 08 02 10 32 18 C8 01 20 00 8D B0 FE",
+      "frame_len": 19
+    },
+    {
+      "name": "stop_feed",
+      "command": "STOP_FEED_OR_ROLLBACK",
+      "command_code": 9,
+      "params": {
+        "index": 2
+      },
+      "request_id": 11,
+      "target_device_id": 1,
+      "flags": 1,
+      "payload_hex": "08 02",
+      "frame_hex": "FF AA 01 0B 00 09 02 08 02 76 60 FE",
+      "frame_len": 12
+    },
+    {
+      "name": "set_dry_temp",
+      "command": "SET_DRY_TEMP",
+      "command_code": 12,
+      "params": {
+        "temp": 60
+      },
+      "request_id": 12,
+      "target_device_id": 1,
+      "flags": 1,
+      "payload_hex": "08 3C",
+      "frame_hex": "FF AA 01 0C 00 0C 02 08 3C 0D CA FE",
+      "frame_len": 12
+    }
+  ],
+  "responses": [
+    {
+      "name": "get_status_response",
+      "payload_hex": "08 01 12 0A 08 02 10 37 18 C0 70 20 A8 0A 18 34 20 26 4A 04 08 00 10 03 4A 04 08 01 10 03",
+      "frame_hex": "FF AA 81 03 00 06 1E 08 01 12 0A 08 02 10 37 18 C0 70 20 A8 0A 18 34 20 26 4A 04 08 00 10 03 4A 04 08 01 10 03 18 0E FE",
+      "expected": {
+        "response_count": 1,
+        "leftover_hex": "",
+        "notices": [],
+        "id": 3,
+        "command": "GET_STATUS",
+        "flags": 129,
+        "device_id": 1,
+        "code": 0,
+        "result": {
+          "status": "ready",
+          "status_code": 1,
+          "action": "feeding",
+          "dryer_status": {
+            "status": "drying",
+            "state_detail": "keeping",
+            "state_code": 2,
+            "target_temp": 55,
+            "duration": 240,
+            "remain_time": 1320
+          },
+          "temp": 52,
+          "humidity": 38,
+          "feed_assist_count": 0,
+          "cont_assist_time": 0.0,
+          "slots": [
+            {
+              "index": 0,
+              "status": "ready",
+              "status_detail": "ready",
+              "status_code": 0,
+              "rfid": 3
+            },
+            {
+              "index": 1,
+              "status": "feeding",
+              "status_detail": "feeding",
+              "status_code": 1,
+              "rfid": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "get_info_response",
+      "payload_hex": "0A 07 56 31 2E 31 2E 33 31 12 06 56 31 2E 30 2E 30 18 01",
+      "frame_hex": "FF AA 81 04 00 07 13 0A 07 56 31 2E 31 2E 33 31 12 06 56 31 2E 30 2E 30 18 01 27 5E FE",
+      "expected": {
+        "response_count": 1,
+        "leftover_hex": "",
+        "notices": [],
+        "version": "V1.1.31",
+        "boot_version": "V1.0.0",
+        "first_request": true
+      }
+    },
+    {
+      "name": "drying_generic_code_0",
+      "payload_hex": "08 00",
+      "frame_hex": "FF AA 81 05 00 0B 02 08 00 AD C5 FE",
+      "expected": {
+        "response_count": 1,
+        "leftover_hex": "",
+        "notices": [],
+        "code": 0,
+        "msg": "SUCCESS"
+      }
+    },
+    {
+      "name": "drying_generic_code_2",
+      "payload_hex": "08 02",
+      "frame_hex": "FF AA 81 05 00 0B 02 08 02 BF E6 FE",
+      "expected": {
+        "response_count": 1,
+        "leftover_hex": "",
+        "notices": [],
+        "code": 2,
+        "msg": "FORBIDDEN"
+      }
+    }
+  ],
+  "robustness": [
+    {
+      "name": "normal_frame",
+      "input_hex": "FF AA 81 03 00 06 1E 08 01 12 0A 08 02 10 37 18 C0 70 20 A8 0A 18 34 20 26 4A 04 08 00 10 03 4A 04 08 01 10 03 18 0E FE",
+      "expected": {
+        "response_count": 1,
+        "leftover_hex": "",
+        "notices": []
+      }
+    },
+    {
+      "name": "junk_prefix",
+      "input_hex": "00 12 34 FE FF AA 81 03 00 06 1E 08 01 12 0A 08 02 10 37 18 C0 70 20 A8 0A 18 34 20 26 4A 04 08 00 10 03 4A 04 08 01 10 03 18 0E FE",
+      "expected": {
+        "response_count": 1,
+        "leftover_hex": "",
+        "notices": [
+          "Resync: skipping 4 bytes"
+        ]
+      }
+    },
+    {
+      "name": "half_frame_then_rest",
+      "input_hex": "FF AA 81 03 00 06 1E 08 01",
+      "expected": {
+        "response_count": 0,
+        "leftover_hex": "FF AA 81 03 00 06 1E 08 01",
+        "notices": [],
+        "after_rest_response_count": 1,
+        "after_rest_leftover_hex": ""
+      },
+      "continued_input_hex": "12 0A 08 02 10 37 18 C0 70 20 A8 0A 18 34 20 26 4A 04 08 00 10 03 4A 04 08 01 10 03 18 0E FE"
+    },
+    {
+      "name": "crc_error_then_valid",
+      "input_hex": "FF AA 81 03 00 06 1E 08 01 12 0A 08 02 10 37 18 C0 70 20 A8 0A 18 34 20 26 4A 04 08 00 10 03 4A 04 08 01 10 03 18 F1 FE FF AA 81 03 00 06 1E 08 01 12 0A 08 02 10 37 18 C0 70 20 A8 0A 18 34 20 26 4A 04 08 00 10 03 4A 04 08 01 10 03 18 0E FE",
+      "expected": {
+        "response_count": 1,
+        "leftover_hex": "",
+        "notices": [
+          "Invalid CRC"
+        ]
+      }
+    },
+    {
+      "name": "split_header_keeps_trailing_ff",
+      "input_hex": "00 11 22 33 FF",
+      "expected": {
+        "first_buffered_hex": "00 11 22 33 FF",
+        "response_count": 0,
+        "after_rest_response_count": 0,
+        "after_rest_leftover_hex": ""
+      },
+      "continued_input_hex": "81 03 00 06 1E 08 01 12 0A 08 02 10 37 18 C0 70 20 A8 0A 18 34 20 26 4A 04 08 00 10 03 4A 04 08 01 10 03 18 0E FE"
+    },
+    {
+      "name": "two_frames_one_read",
+      "input_hex": "FF AA 81 03 00 06 1E 08 01 12 0A 08 02 10 37 18 C0 70 20 A8 0A 18 34 20 26 4A 04 08 00 10 03 4A 04 08 01 10 03 18 0E FE FF AA 81 03 00 06 1E 08 01 12 0A 08 02 10 37 18 C0 70 20 A8 0A 18 34 20 26 4A 04 08 00 10 03 4A 04 08 01 10 03 18 0E FE",
+      "expected": {
+        "response_count": 2,
+        "leftover_hex": "",
+        "notices": [],
+        "ids": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "name": "response_flag_and_device_id",
+      "input_hex": "FF AA 81 03 00 06 1E 08 01 12 0A 08 02 10 37 18 C0 70 20 A8 0A 18 34 20 26 4A 04 08 00 10 03 4A 04 08 01 10 03 18 0E FE",
+      "expected": {
+        "response_count": 1,
+        "flags": 129,
+        "device_id": 1,
+        "id": 3,
+        "command": "GET_STATUS"
+      }
+    }
+  ]
+}

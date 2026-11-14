@@ -116,6 +116,12 @@ class UsbSerialManager(
         get() = port?.isOpen == true
 
     /**
+     * 收到串口字节时的回调（在串口读线程触发，UI 侧必须自行切主线程）。
+     * v0.2 起由 Ace2Client 消费，用于 ACE2 协议帧解析。
+     */
+    var onDataReceived: ((ByteArray) -> Unit)? = null
+
+    /**
      * 运行时广播接收器：
      * - ACTION_USB_PERMISSION：USB 授权结果（PendingIntent 回调）
      * - ACTION_USB_DEVICE_DETACHED：拔线。Activity 的 manifest intent-filter 收不到拔线广播，
@@ -362,6 +368,11 @@ class UsbSerialManager(
 
     override fun onNewData(data: ByteArray) {
         log("RX (${data.size}B) ${toHex(data)}")
+        try {
+            onDataReceived?.invoke(data)
+        } catch (t: Throwable) {
+            Log.w(TAG, "数据回调异常：${t.message}")
+        }
     }
 
     override fun onRunError(e: Exception) {
